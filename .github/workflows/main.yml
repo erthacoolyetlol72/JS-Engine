@@ -1,50 +1,81 @@
-# This is a basic workflow to help you get started with Actions
+name: Release
 
-name: Build
-
-# Controls when the action will run. 
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+  release:
+    types: [ published ]
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  Electron_Build:
-    runs-on: windows-latest
+  build:
+    name: Build
+    uses: ./.github/workflows/main.yml
+    with:
+      buildFlags: officialBuild
 
+  release-linux:
+    name: Release linuxBuild
+    needs: build
+    runs-on: ubuntu-latest
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2.3.0
+    - name: Download Linux artifact
+      uses: actions/download-artifact@v3
+      with:
+        path: build
+        name: linuxBuild
+    - name: Compress build
+      run: |
+        sudo apt-get install p7zip-full
+        7z a -tzip build.zip -w ./build/.
+    - name: Upload linuxBuild to release
+      uses: svenstaro/upload-release-action@2.5.0
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ github.ref_name }}
+        file: build.zip
+        asset_name: FNF-JS-Engine-linux.zip
+        overwrite: false
 
-      - uses: krdlab/setup-haxe@master
-        with:
-          haxe-version: 4.2.4
-      # Runs a set of commands using the runners shell
-      - name: Install Haxelib
-        run: |
-          haxelib setup C:/haxelib
-          haxelib install lime
-          haxelib install openfl
-          haxelib install flixel
-          haxelib run lime setup flixel
-          haxelib run lime setup
-          haxelib install flixel-ui
-          haxelib install flixel-addons
-          haxelib install flixel-tools
-          haxelib git discord_rpc https://github.com/Aidan63/linc_discord-rpc
-          haxelib install linc_luajit
-          haxelib install format
-          haxelib list
-        shell: cmd
-      - name: Create Version Tag
-        run: echo "${{github.run_id}}" > VERSION
-      - name: Compile
-        run: haxelib run lime build electron --app-version="4.0.0-${{ github.run_id}}"
-      - name: Publish Artifact
-        uses: actions/upload-artifact@v2.2.4
-        with:
-          name: electron
-          path: export/release/electron/bin
+  release-windows:
+    name: Release windowsBuild
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download Windows artifact
+      uses: actions/download-artifact@v3
+      with:
+        path: build
+        name: windowsBuild
+    - name: Compress build
+      run: |
+        sudo apt-get install p7zip-full
+        7z a -tzip build.zip -w ./build/.
+    - name: Upload windowsBuild to release
+      uses: svenstaro/upload-release-action@2.5.0
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ github.ref_name }}
+        file: build.zip
+        asset_name: FNF-JS-Engine.zip
+        overwrite: false
+
+  release-mac:
+    name: Release macBuild
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download Mac artifact
+      uses: actions/download-artifact@v3
+      with:
+        path: build
+        name: macBuild
+    - name: Compress build
+      run: |
+        sudo apt-get install p7zip-full
+        7z a -tzip build.zip -w ./build/.
+    - name: Upload macBuild to release
+      uses: svenstaro/upload-release-action@2.5.0
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ github.ref_name }}
+        file: build.zip
+        asset_name: FNF-JS-Engine-macOS.zip
+        overwrite: false
